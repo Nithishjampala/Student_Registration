@@ -61,8 +61,8 @@ module.exports = async (req, res) => {
     // Ensure the response header row exists.
     const existing = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: "'Responses'!A1:L1'
-    }).catch(() => null);
+      range: "'Responses'!A1:L1",
+   }).catch(() => null);
 
     if (!existing || !existing.data.values || existing.data.values.length === 0) {
       await sheets.spreadsheets.values.update({
