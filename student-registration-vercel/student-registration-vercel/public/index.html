@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173b67">
+  <title>Student Registration</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="brand">
+      <div class="brand-mark">SR</div>
+      <div>
+        <p class="eyebrow">COLLEGE REGISTRATION</p>
+        <h1>Student Registration Form</h1>
+        <p class="subtitle">Enter your details carefully before submitting.</p>
+      </div>
+    </header>
+
+    <form id="registrationForm" class="form-card" novalidate>
+      <section>
+        <div class="section-heading">
+          <span class="step">01</span>
+          <div><h2>Personal Details</h2><p>Basic student information</p></div>
+        </div>
+        <div class="grid">
+          <label class="field"><span>Full Name <b>*</b></span>
+            <input name="name" autocomplete="name" placeholder="Enter your full name" required>
+          </label>
+          <label class="field"><span>Roll Number <b>*</b></span>
+            <input name="rollNo" placeholder="Enter your roll number" required>
+          </label>
+          <label class="field"><span>Mobile Number <b>*</b></span>
+            <input name="mobile" type="tel" inputmode="numeric" maxlength="10" pattern="[6-9][0-9]{9}" placeholder="10-digit mobile number" required>
+            <small>Enter a valid 10-digit Indian mobile number.</small>
+          </label>
+          <label class="field"><span>Email ID <b>*</b></span>
+            <input name="email" type="email" autocomplete="email" placeholder="name@example.com" required>
+          </label>
+          <label class="field"><span>Gender <b>*</b></span>
+            <select name="gender" required><option value="">Select gender</option><option>Male</option><option>Female</option><option>Other</option><option>Prefer not to say</option></select>
+          </label>
+        </div>
+      </section>
+
+      <div class="rule"></div>
+
+      <section>
+        <div class="section-heading">
+          <span class="step">02</span>
+          <div><h2>Academic Details</h2><p>Each list updates based on your previous selection.</p></div>
+        </div>
+        <div class="grid">
+          <label class="field"><span>College <b>*</b></span>
+            <select id="college" name="college" required><option value="">Select college</option></select>
+          </label>
+          <label class="field"><span>Course <b>*</b></span>
+            <select id="course" name="course" required disabled><option value="">Select college first</option></select>
+          </label>
+          <label class="field"><span>Year <b>*</b></span>
+            <select id="year" name="year" required disabled><option value="">Select course first</option></select>
+          </label>
+          <label class="field"><span>Semester <b>*</b></span>
+            <select id="semester" name="semester" required disabled><option value="">Select year first</option></select>
+          </label>
+          <label class="field"><span>Branch <b>*</b></span>
+            <select id="branch" name="branch" required disabled><option value="">Select semester first</option></select>
+          </label>
+          <label class="field"><span>Section <b>*</b></span>
+            <select id="section" name="section" required disabled><option value="">Select branch first</option></select>
+          </label>
+        </div>
+        <p class="helper">Course, Year, Semester, Branch and Section choices are filtered using the uploaded college options spreadsheet.</p>
+      </section>
+
+      <div id="message" class="message" role="status" aria-live="polite"></div>
+      <button id="submitButton" type="submit"><span>Submit Registration</span><span aria-hidden="true">→</span></button>
+      <p class="privacy">Please verify your details before submitting.</p>
+    </form>
+    <footer>Student Registration Portal</footer>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>
