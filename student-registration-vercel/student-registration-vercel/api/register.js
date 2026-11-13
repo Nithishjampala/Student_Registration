@@ -1,4 +1,3 @@
-
 const { google } = require('googleapis');
 const optionRows = require('../public/options.json');
 
