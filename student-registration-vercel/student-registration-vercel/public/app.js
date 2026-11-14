@@ -1,120 +1,277 @@
-const fields = ['college','course','year','semester','branch','section'];
-const labels = ['College','Course','Year','Semester','Branch','Section'];
+
+const fields = [
+  'college',
+  'course',
+  'year',
+  'semester',
+  'branch',
+  'section'
+];
+
+const labels = [
+  'College',
+  'Course',
+  'Year',
+  'Semester',
+  'Branch',
+  'Section'
+];
+
 const NOT_APPLICABLE = 'Not applicable';
+
 let optionRows = [];
 
 const $ = id => document.getElementById(id);
+
 const form = $('registrationForm');
 const message = $('message');
 const submitButton = $('submitButton');
 
 function unique(values) {
-  return [...new Set(values.filter(v => v !== ''))].sort((a,b) =>
-    a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'})
+  return [...new Set(
+    values
+      .map(v => String(v ?? '').trim())
+      .filter(v => v !== '')
+  )].sort((a, b) =>
+    a.localeCompare(b, undefined, {
+      numeric: true,
+      sensitivity: 'base'
+    })
   );
 }
 
+// Reset dependent dropdowns
 function resetFrom(index) {
-  for (let i=index; i<fields.length; i++) {
+  for (let i = index; i < fields.length; i++) {
     const el = $(fields[i]);
-    el.innerHTML = `<option value="">Select ${labels[i].toLowerCase()}${i ? ' first' : ''}</option>`;
+
+    el.innerHTML =
+      `<option value="">Select ${labels[i].toLowerCase()}</option>`;
+
     el.disabled = true;
   }
 }
 
-function fillSelect(index, parentRows) {
+// Find rows matching previous selections
+function rowsMatchingThrough(index) {
+  return optionRows.filter(row =>
+    fields.slice(0, index).every((field, i) => {
+      const selected = $(field).value;
+
+      const sourceValue = String(row[i] ?? '').trim();
+
+      return selected === NOT_APPLICABLE
+        ? sourceValue === ''
+        : sourceValue === selected;
+    })
+  );
+}
+
+// Fill dropdown and automatically select N/A when needed
+function fillSelect(index, matchingRows) {
   const el = $(fields[index]);
-  const values = unique(parentRows.map(row => row[index]));
-  const choices = values.length ? values : [NOT_APPLICABLE];
-  el.innerHTML = `<option value="">Select ${labels[index].toLowerCase()}</option>`;
-  choices.forEach(value => {
+
+  const values = unique(
+    matchingRows.map(row =>
+      String(row[index] ?? '').trim()
+    )
+  );
+
+  el.innerHTML = '';
+
+  // No applicable options: automatically select N/A
+  if (values.length === 0) {
     const option = document.createElement('option');
+
+    option.value = NOT_APPLICABLE;
+    option.textContent = NOT_APPLICABLE;
+
+    el.appendChild(option);
+
+    el.value = NOT_APPLICABLE;
+    el.disabled = true;
+
+    return true;
+  }
+
+  // Add normal selection option
+  const placeholder = document.createElement('option');
+
+  placeholder.value = '';
+  placeholder.textContent =
+    `Select ${labels[index].toLowerCase()}`;
+
+  el.appendChild(placeholder);
+
+  // Add available choices
+  values.forEach(value => {
+    const option = document.createElement('option');
+
     option.value = value;
     option.textContent = value;
+
     el.appendChild(option);
   });
+
   el.disabled = false;
+
+  return false;
 }
 
-function rowsMatchingThrough(index) {
-  return optionRows.filter(row => fields.slice(0,index).every((field,i) =>
-    row[i] === $(field).value
-  ));
+// Automatically process N/A fields
+function processNext(index) {
+  if (index >= fields.length) return;
+
+  const matchingRows = rowsMatchingThrough(index);
+
+  const isNA = fillSelect(index, matchingRows);
+
+  if (isNA) {
+    processNext(index + 1);
+  }
 }
 
+// Load options
 async function initialize() {
   try {
     const response = await fetch('/options.json');
-    if (!response.ok) throw new Error('Could not load the college/course options.');
+
+    if (!response.ok) {
+      throw new Error(
+        'Could not load the college/course options.'
+      );
+    }
+
     optionRows = await response.json();
+
+    if (!Array.isArray(optionRows) || optionRows.length === 0) {
+      throw new Error('No academic options found.');
+    }
+
     fillSelect(0, optionRows);
+
   } catch (err) {
     showMessage(err.message, 'error');
   }
 }
 
-fields.forEach((field,index) => {
+// Dropdown change events
+fields.forEach((field, index) => {
+
   $(field).addEventListener('change', () => {
-    resetFrom(index+1);
+
+    // Reset all following fields
+    resetFrom(index + 1);
+
     if (!$(field).value) return;
-    if (index < fields.length-1) {
-      const matching = rowsMatchingThrough(index+1);
-      fillSelect(index+1, matching.map(row => row.slice(index+1)).map((tail) => {
-        const full = Array(fields.length).fill('');
-        full.splice(index+1, tail.length, ...tail);
-        return full;
-      }));
-    }
-    // For a field whose next level has no values in the source, offer
-    // "Not applicable" and continue the same cascade safely.
-    if (index < fields.length-1 && $(fields[index+1]).options.length <= 1) {
-      fillSelect(index+1, []);
-    }
+
+    // Continue the dependent dropdown sequence
+    processNext(index + 1);
+
   });
+
 });
 
+// Display messages
 function showMessage(text, type) {
   message.textContent = text;
   message.className = `message ${type}`;
 }
 
+// Form submission
 form.addEventListener('submit', async event => {
+
   event.preventDefault();
+
   message.className = 'message';
+
   if (!form.reportValidity()) return;
 
-  const payload = Object.fromEntries(new FormData(form).entries());
-  // Ensure the academic combination exists in the source data. Empty source
-  // cells are represented by "Not applicable" in the visible form.
-  const academic = fields.map(f => payload[f] === NOT_APPLICABLE ? '' : payload[f]);
-  const valid = optionRows.some(row => row.every((v,i) => v === academic[i]));
+  const payload = Object.fromEntries(
+    new FormData(form).entries()
+  );
+
+  // Convert visible N/A values back to empty source values
+  const academic = fields.map(field =>
+    payload[field] === NOT_APPLICABLE
+      ? ''
+      : payload[field]
+  );
+
+  // Validate the complete academic combination
+  const valid = optionRows.some(row =>
+    row.every((value, index) =>
+      String(value ?? '').trim() === academic[index]
+    )
+  );
+
   if (!valid) {
-    showMessage('The selected academic combination is not present in the approved options. Please reselect your academic details.', 'error');
+    showMessage(
+      'The selected academic combination is not present in the approved options. Please reselect your academic details.',
+      'error'
+    );
     return;
   }
 
   submitButton.disabled = true;
-  submitButton.querySelector('span').textContent = 'Submitting…';
+
+  submitButton.querySelector('span').textContent =
+    'Submitting…';
+
   try {
+
     const response = await fetch('/api/register', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+
+      headers: {
+        'Content-Type': 'application/json'
+      },
+
       body: JSON.stringify(payload)
     });
+
     const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.message || 'Submission failed.');
+
+    if (!response.ok || !result.ok) {
+      throw new Error(
+        result.message || 'Submission failed.'
+      );
+    }
+
     form.reset();
+
     resetFrom(1);
+
     fillSelect(0, optionRows);
-    showMessage(result.message || 'Registration submitted successfully.', 'success');
-    window.scrollTo({top:0, behavior:'smooth'});
+
+    showMessage(
+      result.message || 'Registration submitted successfully.',
+      'success'
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+
   } catch (err) {
-    showMessage(err.message || 'Unable to submit. Please try again.', 'error');
+
+    showMessage(
+      err.message || 'Unable to submit. Please try again.',
+      'error'
+    );
+
   } finally {
+
     submitButton.disabled = false;
-    submitButton.querySelector('span').textContent = 'Submit Registration';
+
+    submitButton.querySelector('span').textContent =
+      'Submit Registration';
+
   }
+
 });
 
+// Initial setup
 resetFrom(1);
 initialize();
