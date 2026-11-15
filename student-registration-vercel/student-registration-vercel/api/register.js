@@ -1,164 +1,167 @@
-const { google } = require('googleapis');
-const optionRows = require('../public/options.json');
+
+const { google } = require("googleapis");
 
 const HEADERS = [
-  'Timestamp', 'Name', 'Roll No', 'Mobile Number', 'Email ID', 'Gender',
-  'College', 'Course', 'Year', 'Semester', 'Branch', 'Section'
+  "Timestamp",
+  "Name",
+  "Roll No",
+  "Mobile Number",
+  "Email ID",
+  "Gender",
+  "College",
+  "Course",
+  "Year",
+  "Semester",
+  "Branch",
+  "Section"
 ];
 
-function json(res, status, body) {
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  return res.status(status).json(body);
+function sendJson(res, status, data) {
+  res.status(status).json(data);
+}
+
+function clean(value) {
+  return String(value ?? "").trim();
 }
 
 module.exports = async (req, res) => {
-  if (req.method === 'OPTIONS') return res.status(204).end();
-
-  if (req.method !== 'POST') {
-    return json(res, 405, {
-      ok: false,
-      message: 'Method not allowed'
+  if (req.method !== "POST") {
+    return sendJson(res, 405, {
+      success: false,
+      message: "Method not allowed."
     });
   }
 
   try {
     const {
-      name, rollNo, mobile, email, gender,
-      college, course, year, semester, branch, section
+      name,
+      rollNo,
+      mobile,
+      email,
+      gender,
+      college,
+      course,
+      year,
+      semester,
+      branch,
+      section
     } = req.body || {};
 
-    const fields = [
-      name, rollNo, mobile, email, gender,
-      college, course, year, semester, branch, section
+    const values = [
+      clean(name),
+      clean(rollNo),
+      clean(mobile),
+      clean(email),
+      clean(gender),
+      clean(college),
+      clean(course),
+      clean(year),
+      clean(semester),
+      clean(branch),
+      clean(section)
     ];
 
-    if (fields.some(v => typeof v !== 'string' || !v.trim())) {
-      return json(res, 400, {
-        ok: false,
-        message: 'Please complete all fields.'
+    if (values.some(value => !value)) {
+      return sendJson(res, 400, {
+        success: false,
+        message: "Please complete all required fields."
       });
     }
 
-    if (!/^[6-9]\d{9}$/.test(mobile.trim())) {
-      return json(res, 400, {
-        ok: false,
-        message: 'Enter a valid 10-digit Indian mobile number.'
+    if (!/^[6-9][0-9]{9}$/.test(clean(mobile))) {
+      return sendJson(res, 400, {
+        success: false,
+        message: "Invalid mobile number."
       });
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      return json(res, 400, {
-        ok: false,
-        message: 'Enter a valid email address.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(email))) {
+      return sendJson(res, 400, {
+        success: false,
+        message: "Invalid email address."
       });
     }
 
-    const submittedAcademic = [
-      college, course, year, semester, branch, section
-    ].map(value =>
-      value === 'Not applicable' ? '' : value
-    );
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    const worksheet = process.env.GOOGLE_WORKSHEET;
+    const serviceAccountJson =
+      process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
-    const isApprovedCombination = optionRows.some(row =>
-      row.every((value, index) =>
-        value === submittedAcademic[index]
-      )
-    );
-
-    if (!isApprovedCombination) {
-      return json(res, 400, {
-        ok: false,
-        message: 'The selected academic combination is not valid.'
-      });
+    if (!spreadsheetId || !worksheet || !serviceAccountJson) {
+      throw new Error("Google Sheets environment variables are missing.");
     }
 
-    const sheetId = process.env.GOOGLE_SHEET_ID;
-    const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const credentials = JSON.parse(serviceAccountJson);
 
-    let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
-
-    if (!sheetId || !clientEmail || !privateKey) {
-      return json(res, 500, {
-        ok: false,
-        message: 'Google Sheets integration is not configured. Check Vercel environment variables.'
-      });
-    }
-
-    // Normalize the Google service-account private key.
-    privateKey = privateKey
-      .trim()
-      .replace(/^["']|["']$/g, '')
-      .replace(/\\n/g, '\n');
-
-    const auth = new google.auth.JWT({
-      email: clientEmail,
-      key: privateKey,
+    const auth = new google.auth.GoogleAuth({
+      credentials,
       scopes: [
-        'https://www.googleapis.com/auth/spreadsheets'
+        "https://www.googleapis.com/auth/spreadsheets"
       ]
     });
 
+    const client = await auth.getClient();
+
     const sheets = google.sheets({
-      version: 'v4',
-      auth
+      version: "v4",
+      auth: client
     });
 
-    // Check whether the Responses header row exists.
-    const existing = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: "'Responses'!A1:L1"
+    // Check whether the first row contains the expected headers.
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${worksheet}!A1:L1`
     });
 
-    if (!existing.data.values || existing.data.values.length === 0) {
+    const existingHeaders = headerResponse.data.values?.[0] || [];
+
+    if (existingHeaders.length === 0) {
       await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: "'Responses'!A1:L1",
-        valueInputOption: 'RAW',
+        spreadsheetId,
+        range: `${worksheet}!A1:L1`,
+        valueInputOption: "RAW",
         requestBody: {
           values: [HEADERS]
         }
       });
+    } else if (
+      HEADERS.some((header, index) =>
+        existingHeaders[index] !== header
+      )
+    ) {
+      throw new Error(
+        "Google Sheet headers do not match the expected column order."
+      );
     }
 
-    // Append the student registration.
+    const timestamp = new Date().toISOString();
+
+    const row = [
+      timestamp,
+      ...values
+    ];
+
     await sheets.spreadsheets.values.append({
-      spreadsheetId: sheetId,
-      range: "'Responses'!A:L",
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
+      spreadsheetId,
+      range: `${worksheet}!A:L`,
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
       requestBody: {
-        values: [[
-          new Date().toISOString(),
-          name.trim(),
-          rollNo.trim(),
-          mobile.trim(),
-          email.trim(),
-          gender,
-          college,
-          course,
-          year,
-          semester,
-          branch,
-          section
-        ]]
+        values: [row]
       }
     });
 
-    return json(res, 200, {
-      ok: true,
-      message: 'Registration submitted successfully.'
+    return sendJson(res, 200, {
+      success: true,
+      message: "Registration completed successfully."
     });
 
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
 
-    return json(res, 500, {
-      ok: false,
-      message: 'Could not save your registration. Please check the server logs.',
-      error: error.message
+    return sendJson(res, 500, {
+      success: false,
+      message: "Unable to submit registration. Please try again later."
     });
   }
 };
