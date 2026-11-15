@@ -26,7 +26,6 @@ function clean(value) {
 
 module.exports = async (req, res) => {
 
-  // Only POST requests are accepted.
   if (req.method !== "POST") {
     return sendJson(res, 405, {
       success: false,
@@ -36,13 +35,31 @@ module.exports = async (req, res) => {
 
   try {
 
-    // 1. Read environment variables.
-    const spreadsheetId = process.env.SPREADSHEET_ID;
-    const worksheet = process.env.GOOGLE_WORKSHEET;
-    const serviceAccountJson =
-      process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+    // STEP 1: Read environment variables.
 
-    // 2. Identify missing environment variables.
+    const spreadsheetId =
+      process.env.SPREADSHEET_ID?.trim();
+
+    const worksheet =
+      process.env.GOOGLE_WORKSHEET?.trim();
+
+    const serviceAccountJson =
+      process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim();
+
+    // STEP 2: Diagnose environment variables.
+
+    const configurationStatus = {
+      SPREADSHEET_ID: Boolean(spreadsheetId),
+      GOOGLE_WORKSHEET: Boolean(worksheet),
+      GOOGLE_SERVICE_ACCOUNT_JSON: Boolean(serviceAccountJson),
+      VERCEL_ENV: process.env.VERCEL_ENV || "unknown"
+    };
+
+    console.log(
+      "Google Sheets configuration status:",
+      configurationStatus
+    );
+
     const missingVariables = [];
 
     if (!spreadsheetId) {
@@ -72,7 +89,8 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 3. Read registration data.
+    // STEP 3: Read registration data.
+
     const {
       name,
       rollNo,
@@ -101,7 +119,6 @@ module.exports = async (req, res) => {
       clean(section)
     ];
 
-    // 4. Validate required fields.
     const fieldNames = [
       "Name",
       "Roll Number",
@@ -116,6 +133,8 @@ module.exports = async (req, res) => {
       "Section"
     ];
 
+    // STEP 4: Validate required fields.
+
     for (let i = 0; i < values.length; i++) {
 
       if (!values[i]) {
@@ -127,7 +146,8 @@ module.exports = async (req, res) => {
 
     }
 
-    // 5. Validate Indian mobile number.
+    // STEP 5: Validate mobile number.
+
     if (!/^[6-9][0-9]{9}$/.test(clean(mobile))) {
       return sendJson(res, 400, {
         success: false,
@@ -135,7 +155,8 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 6. Validate email.
+    // STEP 6: Validate email.
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(email))) {
       return sendJson(res, 400, {
         success: false,
@@ -143,18 +164,21 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 7. Parse service account credentials.
+    // STEP 7: Parse Google service account JSON.
+
     let credentials;
 
     try {
       credentials = JSON.parse(serviceAccountJson);
     } catch (error) {
-      console.error("Service account JSON parsing failed.");
+
+      console.error("Google credentials JSON is invalid.");
 
       return sendJson(res, 500, {
         success: false,
-        message: "Invalid Google service account JSON configuration."
+        message: "Google service account JSON is invalid."
       });
+
     }
 
     if (
@@ -162,13 +186,16 @@ module.exports = async (req, res) => {
       !credentials.client_email ||
       !credentials.private_key
     ) {
+
       return sendJson(res, 500, {
         success: false,
         message: "Google service account credentials are incomplete."
       });
+
     }
 
-    // 8. Authenticate with Google Sheets.
+    // STEP 8: Authenticate with Google.
+
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: [
@@ -183,10 +210,13 @@ module.exports = async (req, res) => {
       auth: client
     });
 
-    // 9. Check the spreadsheet and worksheet.
+    // STEP 9: Check spreadsheet access.
+
     const spreadsheet = await sheets.spreadsheets.get({
       spreadsheetId
     });
+
+    // STEP 10: Check worksheet.
 
     const worksheetExists =
       spreadsheet.data.sheets?.some(
@@ -195,19 +225,25 @@ module.exports = async (req, res) => {
       );
 
     if (!worksheetExists) {
+
       return sendJson(res, 400, {
         success: false,
         message:
-          "Worksheet '" + worksheet + "' was not found. " +
-          "Check GOOGLE_WORKSHEET."
+          "Worksheet '" + worksheet +
+          "' was not found. Check GOOGLE_WORKSHEET."
       });
+
     }
 
-    // 10. Check existing headers.
+    const safeWorksheet =
+      "'" + worksheet.replace(/'/g, "''") + "'";
+
+    // STEP 11: Check Google Sheet headers.
+
     const headerResponse =
       await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `'${worksheet.replace(/'/g, "''")}'!A1:L1`
+        range: `${safeWorksheet}!A1:L1`
       });
 
     const existingHeaders =
@@ -217,7 +253,7 @@ module.exports = async (req, res) => {
 
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `'${worksheet.replace(/'/g, "''")}'!A1:L1`,
+        range: `${safeWorksheet}!A1:L1`,
         valueInputOption: "RAW",
         requestBody: {
           values: [HEADERS]
@@ -232,16 +268,19 @@ module.exports = async (req, res) => {
       );
 
       if (!headersMatch) {
+
         return sendJson(res, 500, {
           success: false,
           message:
             "Google Sheet headers do not match the required column order."
         });
+
       }
 
     }
 
-    // 11. Prepare the registration row.
+    // STEP 12: Prepare registration data.
+
     const timestamp = new Date().toISOString();
 
     const row = [
@@ -249,12 +288,13 @@ module.exports = async (req, res) => {
       ...values
     ];
 
-    // 12. Save registration in Google Sheets.
+    // STEP 13: Append data to Google Sheets.
+
     await sheets.spreadsheets.values.append({
 
       spreadsheetId,
 
-      range: `'${worksheet.replace(/'/g, "''")}'!A:L`,
+      range: `${safeWorksheet}!A:L`,
 
       valueInputOption: "RAW",
 
@@ -275,14 +315,14 @@ module.exports = async (req, res) => {
 
   } catch (error) {
 
-    // Log actual backend error in Vercel.
-    console.error(
-      "Registration error:",
-      error.message,
-      error.code || ""
-    );
+    // Log detailed error only in Vercel.
+    console.error("Registration error:", {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      details: error.response?.data?.error?.message
+    });
 
-    // Keep internal details out of the public response.
     return sendJson(res, 500, {
       success: false,
       message:
