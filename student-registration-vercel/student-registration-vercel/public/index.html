@@ -64,58 +64,84 @@
 
       <h2>Academic Information</h2>
 
+      <!-- College -->
       <div class="form-group">
         <label for="college">College *</label>
+
         <select id="college" name="college" required>
           <option value="">Loading colleges...</option>
         </select>
+
+        <input
+          class="other-input"
+          id="collegeOther"
+          type="text"
+          placeholder="Enter your college name"
+          maxlength="150"
+          autocomplete="organization"
+        >
       </div>
 
+      <!-- Course -->
       <div class="form-group">
         <label for="course">Course *</label>
+
         <select id="course" name="course" required disabled>
           <option value="">Select Course</option>
         </select>
+
         <input class="other-input" id="courseOther"
           type="text" placeholder="Enter your course"
           maxlength="100">
       </div>
 
+      <!-- Year -->
       <div class="form-group">
         <label for="year">Year *</label>
+
         <select id="year" name="year" required disabled>
           <option value="">Select Year</option>
         </select>
+
         <input class="other-input" id="yearOther"
           type="text" placeholder="Enter your year"
           maxlength="50">
       </div>
 
+      <!-- Semester -->
       <div class="form-group">
         <label for="semester">Semester *</label>
+
         <select id="semester" name="semester" required disabled>
           <option value="">Select Semester</option>
         </select>
+
         <input class="other-input" id="semesterOther"
           type="text" placeholder="Enter your semester"
           maxlength="50">
       </div>
 
+      <!-- Branch -->
       <div class="form-group">
         <label for="branch">Branch *</label>
+
         <select id="branch" name="branch" required disabled>
           <option value="">Select Branch</option>
         </select>
+
         <input class="other-input" id="branchOther"
           type="text" placeholder="Enter your branch"
           maxlength="100">
       </div>
 
+      <!-- Section -->
       <div class="form-group">
         <label for="section">Section *</label>
+
         <select id="section" name="section" required disabled>
           <option value="">Select Section</option>
         </select>
+
         <input class="other-input" id="sectionOther"
           type="text" placeholder="Enter your section"
           maxlength="50">
@@ -123,7 +149,9 @@
 
       <div class="support-box">
         <strong>Facing any difficulties while filling out this form?</strong>
+
         <p>Please contact us for assistance:</p>
+
         <a href="mailto:support@talentfarm.ai">
           support@talentfarm.ai
         </a>
@@ -139,5 +167,6 @@
   </main>
 
   <script src="/app.js"></script>
+
 </body>
 </html>
