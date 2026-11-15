@@ -12,9 +12,6 @@ const fields = [
   "section"
 ];
 
-// Other is allowed ONLY for College.
-const otherFields = ["college"];
-
 const OTHER = "__OTHER__";
 const NOT_APPLICABLE = "Not applicable";
 
@@ -26,7 +23,7 @@ fields.forEach(field => {
   selects[field] = document.getElementById(field);
 });
 
-// Normalize source data.
+// Normalize source values.
 function normalize(value) {
   const text = String(value ?? "").trim();
 
@@ -45,7 +42,25 @@ function unique(values) {
   return [...new Set(values)];
 }
 
-// Get matching rows based on previous dropdown selections.
+// Get the actual value selected by the student.
+function getFinalValue(field) {
+  const select = selects[field];
+
+  if (!select || !select.value) return "";
+
+  if (select.value === OTHER) {
+    const input = document.getElementById(field + "Other");
+    return input ? input.value.trim() : "";
+  }
+
+  if (select.value === NOT_APPLICABLE) {
+    return NOT_APPLICABLE;
+  }
+
+  return select.value.trim();
+}
+
+// Filter rows using previous dropdown selections.
 function getMatchingRows(fieldIndex) {
   return optionRows.filter(row => {
 
@@ -56,10 +71,10 @@ function getMatchingRows(fieldIndex) {
 
       if (!selected) return false;
 
-      // Custom College: show all available academic options.
+      // Custom values do not restrict source rows.
       if (selected === OTHER) continue;
 
-      // Not applicable matches blank values in options.json.
+      // Not applicable matches blank source values.
       if (selected === NOT_APPLICABLE) {
         if (normalize(row[i]) !== "") return false;
         continue;
@@ -77,9 +92,8 @@ function getMatchingRows(fieldIndex) {
   });
 }
 
-// Reset dropdown and custom input.
+// Reset a dropdown and its custom input.
 function resetSelect(field, placeholder) {
-
   const select = selects[field];
 
   select.innerHTML = "";
@@ -107,12 +121,10 @@ function populateSelect(
   placeholder,
   allowNA = false
 ) {
-
   const select = selects[field];
 
   select.innerHTML = "";
 
-  // Default option.
   const first = document.createElement("option");
   first.value = "";
   first.textContent = placeholder;
@@ -121,54 +133,40 @@ function populateSelect(
 
   // Normal options.
   values.forEach(value => {
-
     const option = document.createElement("option");
 
     option.value = value;
     option.textContent = value;
 
     select.appendChild(option);
-
   });
 
-  // Not applicable for Course, Year, Semester, Branch, Section.
+  // Not applicable for Course, Year, Semester, Branch and Section.
   if (allowNA) {
-
     const naOption = document.createElement("option");
 
     naOption.value = NOT_APPLICABLE;
     naOption.textContent = NOT_APPLICABLE;
 
     select.appendChild(naOption);
-
   }
 
-  // Other ONLY for College.
-  if (field === "college") {
+  // Other for ALL six fields.
+  const otherOption = document.createElement("option");
 
-    const otherOption = document.createElement("option");
+  otherOption.value = OTHER;
+  otherOption.textContent = "Other";
 
-    otherOption.value = OTHER;
-    otherOption.textContent = "Other";
-
-    select.appendChild(otherOption);
-
-  }
+  select.appendChild(otherOption);
 
   select.disabled = false;
 }
 
-// Update dependent dropdowns.
+// Update the next dropdown and reset dependent fields.
 function updateField(index) {
 
-  // Reset all dependent fields.
   for (let i = index + 1; i < fields.length; i++) {
-
-    resetSelect(
-      fields[i],
-      "Select " + fields[i]
-    );
-
+    resetSelect(fields[i], "Select " + fields[i]);
   }
 
   if (index >= fields.length - 1) return;
@@ -193,37 +191,47 @@ function updateField(index) {
     nextField,
     values,
     "Select " + nextField,
-    true
+    nextIndex >= 2
   );
 }
 
-// Handle College Other selection.
-function handleCollegeOther() {
+// Show or hide the relevant Other input.
+function handleOther(field) {
 
-  const collegeSelect = selects.college;
-  const collegeInput = document.getElementById("collegeOther");
+  const select = selects[field];
+  const input = document.getElementById(field + "Other");
 
-  const isOther = collegeSelect.value === OTHER;
+  const isOther = select.value === OTHER;
 
-  collegeInput.classList.toggle("visible", isOther);
-  collegeInput.required = isOther;
+  input.classList.toggle("visible", isOther);
+  input.required = isOther;
 
   if (!isOther) {
-    collegeInput.value = "";
+    input.value = "";
   }
 
-  // Refresh Course options.
-  updateField(0);
+  const index = fields.indexOf(field);
+
+  // Refresh subsequent dropdowns.
+  updateField(index);
 }
 
-// Attach dropdown events.
+// Attach events to all six dropdowns and Other inputs.
 fields.forEach((field, index) => {
 
-  selects[field].addEventListener("change", () => {
+  const select = selects[field];
+  const input = document.getElementById(field + "Other");
 
-    if (field === "college") {
-      handleCollegeOther();
-    } else {
+  select.addEventListener("change", () => {
+
+    handleOther(field);
+
+  });
+
+  input.addEventListener("input", () => {
+
+    // Keep subsequent dropdowns available for custom values.
+    if (index < fields.length - 1) {
       updateField(index);
     }
 
@@ -231,16 +239,7 @@ fields.forEach((field, index) => {
 
 });
 
-// Handle custom College input.
-document
-  .getElementById("collegeOther")
-  .addEventListener("input", () => {
-
-    updateField(0);
-
-  });
-
-// Load academic options.
+// Load academic options from options.json.
 async function loadOptions() {
 
   try {
@@ -276,7 +275,8 @@ async function loadOptions() {
     populateSelect(
       "college",
       colleges,
-      "Select College"
+      "Select College",
+      false
     );
 
   } catch (error) {
@@ -287,44 +287,17 @@ async function loadOptions() {
     message.className = "error";
 
   }
-
 }
 
-// Get final values for Google Sheets.
-function getFinalValue(field) {
-
-  const select = selects[field];
-
-  // College Other: use manually entered college name.
-  if (field === "college" && select.value === OTHER) {
-
-    return document
-      .getElementById("collegeOther")
-      .value.trim();
-
-  }
-
-  // Not applicable is saved as text.
-  if (select.value === NOT_APPLICABLE) {
-    return NOT_APPLICABLE;
-  }
-
-  return String(select.value ?? "").trim();
-}
-
-// Validate form.
+// Validate the registration form.
 function validateForm() {
 
-  const mobile = document
-    .getElementById("mobile")
-    .value.trim();
+  const mobile = document.getElementById("mobile").value.trim();
 
   if (!/^[6-9][0-9]{9}$/.test(mobile)) {
-
     throw new Error(
       "Enter a valid 10-digit Indian mobile number."
     );
-
   }
 
   for (const field of fields) {
@@ -332,54 +305,34 @@ function validateForm() {
     const select = selects[field];
 
     if (!select || !select.value) {
-
       throw new Error(
         "Please select the " + field + " field."
       );
-
     }
 
-    // Only College can have Other.
-    if (field === "college" && select.value === OTHER) {
+    // Other requires a custom value.
+    if (select.value === OTHER) {
 
-      const collegeName = document
-        .getElementById("collegeOther")
-        .value.trim();
+      const input = document.getElementById(field + "Other");
 
-      if (!collegeName) {
-
+      if (!input || !input.value.trim()) {
         throw new Error(
-          "Please enter your college name."
+          "Please enter your " + field + "."
         );
-
       }
-
     }
 
-    // Not applicable is a valid selection.
-  }
-
-  // Check final academic values.
-  for (const field of fields) {
-
-    if (!getFinalValue(field)) {
-
-      throw new Error(
-        "Please complete the " + field + " field."
-      );
-
-    }
-
+    // Not applicable is accepted.
   }
 
 }
 
-// Reset after successful registration.
+// Reset the form after successful submission.
 function resetRegistrationForm() {
 
   form.reset();
 
-  // Restore College dropdown.
+  // Restore College options.
   const colleges = unique(
     optionRows
       .map(row => normalize(row[0]))
@@ -389,26 +342,25 @@ function resetRegistrationForm() {
   populateSelect(
     "college",
     colleges,
-    "Select College"
+    "Select College",
+    false
   );
 
-  // Reset remaining academic dropdowns.
+  // Reset remaining academic fields.
   for (let i = 1; i < fields.length; i++) {
-
-    resetSelect(
-      fields[i],
-      "Select " + fields[i]
-    );
-
+    resetSelect(fields[i], "Select " + fields[i]);
   }
 
-  // Reset College Other input.
-  const collegeInput =
-    document.getElementById("collegeOther");
+  // Hide and clear all Other inputs.
+  fields.forEach(field => {
 
-  collegeInput.value = "";
-  collegeInput.required = false;
-  collegeInput.classList.remove("visible");
+    const input = document.getElementById(field + "Other");
+
+    input.value = "";
+    input.required = false;
+    input.classList.remove("visible");
+
+  });
 
 }
 
@@ -468,11 +420,9 @@ form.addEventListener("submit", async event => {
     const result = await response.json();
 
     if (!response.ok || !result.success) {
-
       throw new Error(
         result.message || "Registration failed."
       );
-
     }
 
     message.textContent =
