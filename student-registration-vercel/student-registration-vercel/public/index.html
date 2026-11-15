@@ -1,297 +1,143 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#173b67">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Talentfarm Platform Registration</title>
-
   <link rel="stylesheet" href="/styles.css">
-
-  <style>
-    /* Main page */
-
-    .page {
-      position: relative;
-      width: 100%;
-    }
-
-    /* Logo - Top Left */
-
-    .brand-logo {
-      position: absolute;
-      top: 15px;
-      left: 20px;
-      z-index: 5;
-    }
-
-    .brand-logo img {
-      display: block;
-      width: 105px;
-      height: auto;
-      max-width: 100%;
-      object-fit: contain;
-    }
-
-    /* Centered Heading */
-
-    .brand {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      margin-bottom: 28px;
-      padding-top: 85px;
-    }
-
-    .brand .eyebrow {
-      font-weight: 700;
-      letter-spacing: 2px;
-    }
-
-    .brand h1 {
-      font-size: 28px;
-      font-weight: 700;
-      margin: 8px 0;
-    }
-
-    .brand .subtitle {
-      margin-top: 8px;
-    }
-
-    /* Tablet */
-
-    @media (max-width: 768px) {
-      .brand-logo {
-        top: 12px;
-        left: 15px;
-      }
-
-      .brand-logo img {
-        width: 85px;
-      }
-
-      .brand {
-        padding-top: 75px;
-      }
-
-      .brand h1 {
-        font-size: 25px;
-      }
-    }
-
-    /* Mobile */
-
-    @media (max-width: 480px) {
-      .brand-logo {
-        top: 10px;
-        left: 12px;
-      }
-
-      .brand-logo img {
-        width: 70px;
-      }
-
-      .brand {
-        padding-top: 65px;
-        margin-bottom: 22px;
-      }
-
-      .brand h1 {
-        font-size: 22px;
-      }
-
-      .brand .eyebrow {
-        font-size: 11px;
-      }
-
-      .brand .subtitle {
-        font-size: 13px;
-      }
-    }
-  </style>
 </head>
-
 <body>
 
-  <main class="page">
-
-    <!-- Talentfarm Logo - Top Left -->
+  <main class="container">
 
     <div class="brand-logo">
-      <img
-        src="/talentfarm-logo.png"
-        alt="Talentfarm Logo"
-      >
+      <img src="/talentfarm-logo.png" alt="Talentfarm Logo">
     </div>
 
-    <!-- Centered Registration Heading -->
-
     <header class="brand">
-
-      <div>
-        <p class="eyebrow">TALENTFARM PLATFORM</p>
-
-        <h1>Talentfarm Platform Registration</h1>
-
-        <p class="subtitle">
-          Enter your details carefully before submitting.
-        </p>
-      </div>
-
+      <p class="eyebrow">TALENTFARM PLATFORM</p>
+      <h1>Talentfarm Platform Registration</h1>
+      <p class="subtitle">Please fill in your details to complete registration.</p>
     </header>
 
-    <!-- Registration Form -->
+    <form id="registrationForm">
 
-    <form id="registrationForm" class="form-card" novalidate>
+      <h2>Personal Information</h2>
 
-      <!-- Personal Details -->
+      <div class="form-group">
+        <label for="name">Full Name *</label>
+        <input type="text" id="name" name="name"
+          placeholder="Enter your full name" required>
+      </div>
 
-      <section>
+      <div class="form-group">
+        <label for="rollNo">Roll Number *</label>
+        <input type="text" id="rollNo" name="rollNo"
+          placeholder="Enter your roll number" required>
+      </div>
 
-        <div class="section-heading">
-          <span class="step">01</span>
+      <div class="form-group">
+        <label for="mobile">Mobile Number *</label>
+        <input type="tel" id="mobile" name="mobile"
+          placeholder="Enter 10-digit mobile number"
+          pattern="[6-9][0-9]{9}"
+          maxlength="10" inputmode="numeric" required>
+      </div>
 
-          <div>
-            <h2>Personal Details</h2>
-            <p>Basic student information</p>
-          </div>
-        </div>
+      <div class="form-group">
+        <label for="email">Email ID *</label>
+        <input type="email" id="email" name="email"
+          placeholder="Enter your email address" required>
+      </div>
 
-        <div class="grid">
+      <div class="form-group">
+        <label for="gender">Gender *</label>
+        <select id="gender" name="gender" required>
+          <option value="">Select Gender</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+          <option value="Prefer not to say">Prefer not to say</option>
+        </select>
+      </div>
 
-          <label class="field">
-            <span>Full Name <b>*</b></span>
-            <input name="name" autocomplete="name"
-              placeholder="Enter your full name" required>
-          </label>
+      <h2>Academic Information</h2>
 
-          <label class="field">
-            <span>Roll Number <b>*</b></span>
-            <input name="rollNo"
-              placeholder="Enter your roll number" required>
-          </label>
+      <div class="form-group">
+        <label for="college">College *</label>
+        <select id="college" name="college" required>
+          <option value="">Loading colleges...</option>
+        </select>
+      </div>
 
-          <label class="field">
-            <span>Mobile Number <b>*</b></span>
-            <input name="mobile" type="tel"
-              inputmode="numeric" maxlength="10"
-              pattern="[6-9][0-9]{9}"
-              placeholder="10-digit mobile number" required>
-            <small>Enter a valid 10-digit Indian mobile number.</small>
-          </label>
+      <div class="form-group">
+        <label for="course">Course *</label>
+        <select id="course" name="course" required disabled>
+          <option value="">Select Course</option>
+        </select>
+        <input class="other-input" id="courseOther"
+          type="text" placeholder="Enter your course"
+          maxlength="100">
+      </div>
 
-          <label class="field">
-            <span>Email ID <b>*</b></span>
-            <input name="email" type="email"
-              autocomplete="email"
-              placeholder="name@example.com" required>
-          </label>
+      <div class="form-group">
+        <label for="year">Year *</label>
+        <select id="year" name="year" required disabled>
+          <option value="">Select Year</option>
+        </select>
+        <input class="other-input" id="yearOther"
+          type="text" placeholder="Enter your year"
+          maxlength="50">
+      </div>
 
-          <label class="field">
-            <span>Gender <b>*</b></span>
-            <select name="gender" required>
-              <option value="">Select gender</option>
-              <option>Male</option>
-              <option>Female</option>
-              <option>Other</option>
-              <option>Prefer not to say</option>
-            </select>
-          </label>
+      <div class="form-group">
+        <label for="semester">Semester *</label>
+        <select id="semester" name="semester" required disabled>
+          <option value="">Select Semester</option>
+        </select>
+        <input class="other-input" id="semesterOther"
+          type="text" placeholder="Enter your semester"
+          maxlength="50">
+      </div>
 
-        </div>
-      </section>
+      <div class="form-group">
+        <label for="branch">Branch *</label>
+        <select id="branch" name="branch" required disabled>
+          <option value="">Select Branch</option>
+        </select>
+        <input class="other-input" id="branchOther"
+          type="text" placeholder="Enter your branch"
+          maxlength="100">
+      </div>
 
-      <div class="rule"></div>
+      <div class="form-group">
+        <label for="section">Section *</label>
+        <select id="section" name="section" required disabled>
+          <option value="">Select Section</option>
+        </select>
+        <input class="other-input" id="sectionOther"
+          type="text" placeholder="Enter your section"
+          maxlength="50">
+      </div>
 
-      <!-- Academic Details -->
+      <div class="support-box">
+        <strong>Facing any difficulties while filling out this form?</strong>
+        <p>Please contact us for assistance:</p>
+        <a href="mailto:support@talentfarm.ai">
+          support@talentfarm.ai
+        </a>
+      </div>
 
-      <section>
-
-        <div class="section-heading">
-          <span class="step">02</span>
-
-          <div>
-            <h2>Academic Details</h2>
-            <p>Each list updates based on your previous selection.</p>
-          </div>
-        </div>
-
-        <div class="grid">
-
-          <label class="field">
-            <span>College <b>*</b></span>
-            <select id="college" name="college" required>
-              <option value="">Select college</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Course <b>*</b></span>
-            <select id="course" name="course" required disabled>
-              <option value="">Select college first</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Year <b>*</b></span>
-            <select id="year" name="year" required disabled>
-              <option value="">Select course first</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Semester <b>*</b></span>
-            <select id="semester" name="semester" required disabled>
-              <option value="">Select year first</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Branch <b>*</b></span>
-            <select id="branch" name="branch" required disabled>
-              <option value="">Select semester first</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span>Section <b>*</b></span>
-            <select id="section" name="section" required disabled>
-              <option value="">Select branch first</option>
-            </select>
-          </label>
-
-        </div>
-
-      </section>
-
-      <!-- Status Message -->
-
-      <div id="message" class="message"
-        role="status" aria-live="polite"></div>
-
-      <!-- Submit Button -->
-
-      <button id="submitButton" type="submit">
-        <span>Submit Registration</span>
-        <span aria-hidden="true">→</span>
+      <button type="submit" id="submitButton">
+        Submit Registration
       </button>
 
-      <p class="privacy">
-        Please verify your details before submitting.
-      </p>
+      <p id="message" role="status" aria-live="polite"></p>
 
     </form>
-
-    <footer>
-      Talentfarm Platform Registration
-    </footer>
-
   </main>
 
-  <script src="/app.js" defer></script>
-
+  <script src="/app.js"></script>
 </body>
 </html>
