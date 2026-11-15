@@ -16,6 +16,9 @@ const HEADERS = [
   "Section"
 ];
 
+// Your existing Google Sheet tab name
+const WORKSHEET = process.env.GOOGLE_WORKSHEET || "Responses";
+
 function sendJson(res, status, data) {
   return res.status(status).json(data);
 }
@@ -35,61 +38,51 @@ module.exports = async (req, res) => {
 
   try {
 
-    // STEP 1: Read environment variables.
+    // STEP 1: Read your EXISTING Vercel variables.
 
     const spreadsheetId =
-      process.env.SPREADSHEET_ID?.trim();
+      process.env.GOOGLE_SHEET_ID?.trim();
 
-    const worksheet =
-      process.env.GOOGLE_WORKSHEET?.trim();
+    const clientEmail =
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
 
-    const serviceAccountJson =
-      process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim();
+    const privateKey =
+      process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
 
-    // STEP 2: Diagnose environment variables.
+    // STEP 2: Check configuration.
 
-    const configurationStatus = {
-      SPREADSHEET_ID: Boolean(spreadsheetId),
-      GOOGLE_WORKSHEET: Boolean(worksheet),
-      GOOGLE_SERVICE_ACCOUNT_JSON: Boolean(serviceAccountJson),
+    console.log("Google Sheets configuration:", {
+      GOOGLE_SHEET_ID: Boolean(spreadsheetId),
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: Boolean(clientEmail),
+      GOOGLE_PRIVATE_KEY: Boolean(privateKey),
+      WORKSHEET: WORKSHEET,
       VERCEL_ENV: process.env.VERCEL_ENV || "unknown"
-    };
+    });
 
-    console.log(
-      "Google Sheets configuration status:",
-      configurationStatus
-    );
-
-    const missingVariables = [];
+    const missing = [];
 
     if (!spreadsheetId) {
-      missingVariables.push("SPREADSHEET_ID");
+      missing.push("GOOGLE_SHEET_ID");
     }
 
-    if (!worksheet) {
-      missingVariables.push("GOOGLE_WORKSHEET");
+    if (!clientEmail) {
+      missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
     }
 
-    if (!serviceAccountJson) {
-      missingVariables.push("GOOGLE_SERVICE_ACCOUNT_JSON");
+    if (!privateKey) {
+      missing.push("GOOGLE_PRIVATE_KEY");
     }
 
-    if (missingVariables.length > 0) {
-
-      console.error(
-        "Missing environment variables:",
-        missingVariables
-      );
+    if (missing.length > 0) {
+      console.error("Missing variables:", missing);
 
       return sendJson(res, 500, {
         success: false,
-        message:
-          "Server configuration error. Missing: " +
-          missingVariables.join(", ")
+        message: "Missing Vercel variables: " + missing.join(", ")
       });
     }
 
-    // STEP 3: Read registration data.
+    // STEP 3: Read registration details.
 
     const {
       name,
@@ -133,20 +126,18 @@ module.exports = async (req, res) => {
       "Section"
     ];
 
-    // STEP 4: Validate required fields.
+    // STEP 4: Validate fields.
 
     for (let i = 0; i < values.length; i++) {
-
       if (!values[i]) {
         return sendJson(res, 400, {
           success: false,
           message: "Please provide " + fieldNames[i] + "."
         });
       }
-
     }
 
-    // STEP 5: Validate mobile number.
+    // STEP 5: Validate Indian mobile number.
 
     if (!/^[6-9][0-9]{9}$/.test(clean(mobile))) {
       return sendJson(res, 400, {
@@ -164,37 +155,17 @@ module.exports = async (req, res) => {
       });
     }
 
-    // STEP 7: Parse Google service account JSON.
+    // STEP 7: Build Google service account credentials
+    // using your existing three environment variables.
 
-    let credentials;
+    const credentials = {
+      type: "service_account",
+      client_email: clientEmail,
+      private_key: privateKey,
+      token_uri: "https://oauth2.googleapis.com/token"
+    };
 
-    try {
-      credentials = JSON.parse(serviceAccountJson);
-    } catch (error) {
-
-      console.error("Google credentials JSON is invalid.");
-
-      return sendJson(res, 500, {
-        success: false,
-        message: "Google service account JSON is invalid."
-      });
-
-    }
-
-    if (
-      credentials.type !== "service_account" ||
-      !credentials.client_email ||
-      !credentials.private_key
-    ) {
-
-      return sendJson(res, 500, {
-        success: false,
-        message: "Google service account credentials are incomplete."
-      });
-
-    }
-
-    // STEP 8: Authenticate with Google.
+    // STEP 8: Authenticate with Google Sheets.
 
     const auth = new google.auth.GoogleAuth({
       credentials,
@@ -210,35 +181,28 @@ module.exports = async (req, res) => {
       auth: client
     });
 
-    // STEP 9: Check spreadsheet access.
+    // STEP 9: Verify spreadsheet access.
 
     const spreadsheet = await sheets.spreadsheets.get({
       spreadsheetId
     });
 
-    // STEP 10: Check worksheet.
-
     const worksheetExists =
       spreadsheet.data.sheets?.some(
-        sheet =>
-          sheet.properties?.title === worksheet
+        sheet => sheet.properties?.title === WORKSHEET
       );
 
     if (!worksheetExists) {
-
       return sendJson(res, 400, {
         success: false,
-        message:
-          "Worksheet '" + worksheet +
-          "' was not found. Check GOOGLE_WORKSHEET."
+        message: "Worksheet '" + WORKSHEET + "' not found."
       });
-
     }
 
     const safeWorksheet =
-      "'" + worksheet.replace(/'/g, "''") + "'";
+      "'" + WORKSHEET.replace(/'/g, "''") + "'";
 
-    // STEP 11: Check Google Sheet headers.
+    // STEP 10: Verify headers.
 
     const headerResponse =
       await sheets.spreadsheets.values.get({
@@ -268,42 +232,30 @@ module.exports = async (req, res) => {
       );
 
       if (!headersMatch) {
-
         return sendJson(res, 500, {
           success: false,
-          message:
-            "Google Sheet headers do not match the required column order."
+          message: "Google Sheet headers do not match."
         });
-
       }
-
     }
 
-    // STEP 12: Prepare registration data.
-
-    const timestamp = new Date().toISOString();
+    // STEP 11: Prepare the row.
 
     const row = [
-      timestamp,
+      new Date().toISOString(),
       ...values
     ];
 
-    // STEP 13: Append data to Google Sheets.
+    // STEP 12: Save registration.
 
     await sheets.spreadsheets.values.append({
-
       spreadsheetId,
-
       range: `${safeWorksheet}!A:L`,
-
       valueInputOption: "RAW",
-
       insertDataOption: "INSERT_ROWS",
-
       requestBody: {
         values: [row]
       }
-
     });
 
     console.log("Registration saved successfully.");
@@ -315,7 +267,6 @@ module.exports = async (req, res) => {
 
   } catch (error) {
 
-    // Log detailed error only in Vercel.
     console.error("Registration error:", {
       message: error.message,
       code: error.code,
@@ -325,10 +276,7 @@ module.exports = async (req, res) => {
 
     return sendJson(res, 500, {
       success: false,
-      message:
-        "Unable to submit registration. Please try again later."
+      message: "Unable to submit registration. Please try again later."
     });
-
   }
-
 };
